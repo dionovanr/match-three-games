@@ -39,11 +39,24 @@ public class BoardManager : MonoBehaviour
     private Vector2 endPosition;
     private TileController[,] tiles;
 
+    public bool IsAnimating
+    {
+        get; set;
+    }
+
+    public bool IsSwapping
+    {
+        get; set;
+    }
+
     private void Start()
     {
         Vector2 tileSize = tilePrefab.GetComponent<SpriteRenderer>().size;
         CreateBoard(tileSize);
+
     }
+
+    #region Generate
 
     private void CreateBoard(Vector2 tileSize)
     {
@@ -71,7 +84,7 @@ public class BoardManager : MonoBehaviour
     {
         List<int> possibleId = new List<int>();
 
-        for (int i=0; i<tileTypes.Count; i++)
+        for (int i = 0; i < tileTypes.Count; i++)
         {
             possibleId.Add(i);
         }
@@ -81,25 +94,14 @@ public class BoardManager : MonoBehaviour
             possibleId.Remove(tiles[x - 1, y].id);
         }
 
-        if (y > 1 && tiles[x, y-1].id == tiles[x, y - 2].id)
+        if (y > 1 && tiles[x, y - 1].id == tiles[x, y - 2].id)
         {
             possibleId.Remove(tiles[x, y - 1].id);
         }
         return possibleId;
     }
 
-    public bool IsAnimating
-    {
-        get
-        {
-            return IsSwapping;
-        }
-    }
-
-    public bool IsSwapping
-    {
-        get; set;
-    }
+    #endregion
 
     #region Swapping
 
@@ -122,16 +124,17 @@ public class BoardManager : MonoBehaviour
         StartCoroutine(a.MoveTilePosition(GetIndexPosition(indexB), () => { isRoutineACompleted = true; }));
         StartCoroutine(b.MoveTilePosition(GetIndexPosition(indexA), () => { isRoutineBCompleted = true; }));
 
-        yield return new WaitUntil(()=> {
-            return isRoutineACompleted && isRoutineBCompleted;
-        });
+        yield return new WaitUntil(() => { return isRoutineACompleted && isRoutineBCompleted; });
 
         onCompleted?.Invoke();
 
         IsSwapping = false;
     }
 
+
     #endregion
+
+    #region Helper
 
     public Vector2Int GetTileIndex(TileController tile)
     {
@@ -139,7 +142,7 @@ public class BoardManager : MonoBehaviour
         {
             for (int y = 0; y < size.y; y++)
             {
-                if (tile == tiles[x,y])
+                if (tile == tiles[x, y])
                     return new Vector2Int(x, y);
             }
         }
@@ -152,11 +155,17 @@ public class BoardManager : MonoBehaviour
         return new Vector2(startPosition.x + ((tileSize.x + offsetTile.x) * index.x), startPosition.y + ((tileSize.y + offsetTile.y) * index.y));
     }
 
+    #endregion
+
+
+
+
+
     public List<TileController> GetAllMatches()
     {
         List<TileController> matchingTiles = new List<TileController>();
 
-        for (int x=0; x < size.x; x++)
+        for (int x = 0; x < size.x; x++)
         {
             for (int y = 0; y < size.y; y++)
             {
@@ -167,6 +176,8 @@ public class BoardManager : MonoBehaviour
                     continue;
                 }
 
+                Debug.Log("[" + x + " - " + y + "] has " + tileMatched.Count + " matches");
+
                 foreach (TileController item in tileMatched)
                 {
                     if (!matchingTiles.Contains(item))
@@ -176,6 +187,7 @@ public class BoardManager : MonoBehaviour
                 }
             }
         }
+
         return matchingTiles;
     }
 

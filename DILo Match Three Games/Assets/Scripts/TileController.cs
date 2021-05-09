@@ -8,13 +8,12 @@ public class TileController : MonoBehaviour
 
     private BoardManager board;
     private SpriteRenderer render;
+    private bool isSelected = false;
 
     private static readonly Color selectedColor = new Color(0.5f, 0.5f, 0.5f);
     private static readonly Color normalColor = Color.white;
 
     private static TileController previousSelected = null;
-
-    private bool isSelected = false;
 
     private static readonly float moveDuration = 0.5f;
     private static readonly Vector2[] adjacentDirection = new Vector2[]
@@ -32,44 +31,62 @@ public class TileController : MonoBehaviour
         board = BoardManager.Instance;
         render = GetComponent<SpriteRenderer>();
     }
+    private void Start()
+    {
+        IsDestroyed = false;
+    }
 
     public void ChangeId(int id, int x, int y)
     {
         render.sprite = board.tileTypes[id];
         this.id = id;
 
-        name = "TILE" + id + "(" + x + "," + y + ")";
+        name = "TILE_" + id + "(" + x + "," + y + ")";
     }
 
     private void OnMouseDown()
     {
+        // Non Selectable conditions
         if (render.sprite == null || board.IsAnimating)
         {
             return;
         }
 
+
+        // Already selected this tile?
         if (isSelected)
         {
             Deselect();
         }
         else
         {
+            // if nothing selected yet
             if (previousSelected == null)
             {
                 Select();
             }
+
             else
             {
+                // is this an adjacent tiles?
                 if (GetAllAdjacentTiles().Contains(previousSelected))
                 {
                     TileController otherTile = previousSelected;
                     previousSelected.Deselect();
 
-                    SwapTile(otherTile, () =>
-                    {
-                        SwapTile(otherTile);
+                    // swap tile
+                    SwapTile(otherTile, () => {
+                        if (board.GetAllMatches().Count > 0)
+                        {
+                            Debug.Log("A MATCH!");
+                        }
+                        else
+                        {
+                            SwapTile(otherTile,  () => { board.IsAnimating = false; });
+                        }
                     });
                 }
+                // if not adjacent then change selected
                 else
                 {
                     previousSelected.Deselect();
@@ -79,7 +96,7 @@ public class TileController : MonoBehaviour
         }
     }
 
-    public void SwapTile(TileController otherTile, System.Action onCompleted = null)
+    public void SwapTilePosition(TileController otherTile, System.Action onCompleted = null)
     {
         StartCoroutine(board.SwapTilePosition(this, otherTile, onCompleted));
     }
@@ -104,16 +121,22 @@ public class TileController : MonoBehaviour
 
     #region Swapping & Moving
 
+    public void SwapTile(TileController otherTile, System.Action onCompleted = null)
+    {
+        StartCoroutine(board.SwapTilePosition(this, otherTile, onCompleted));
+    }
+
     public IEnumerator MoveTilePosition(Vector2 targetPosition, System.Action onCompleted)
     {
         Vector2 startPosition = transform.position;
+        float duration = moveDuration;
         float time = 0.0f;
 
         yield return new WaitForEndOfFrame();
 
-        while (time < moveDuration)
+        while (time < duration)
         {
-            transform.position = Vector2.Lerp(startPosition, targetPosition, time / moveDuration);
+            transform.position = Vector2.Lerp(startPosition, targetPosition, time / duration);
             time += Time.deltaTime;
 
             yield return new WaitForEndOfFrame();
@@ -185,6 +208,7 @@ public class TileController : MonoBehaviour
         {
             return matchingTiles;
         }
+
         return null;
     }
 
@@ -197,24 +221,12 @@ public class TileController : MonoBehaviour
 
         List<TileController> matchingTiles = new List<TileController>();
 
-        List<TileController> horizonMatchingTiles = GetOneLineMatch(new Vector2[2]
-        {
-            Vector2.up, Vector2.down
-        });
-        List<TileController> verticalMatchingTiles = GetOneLineMatch(new Vector2[2] 
-        { 
-            Vector2.left, Vector2.right 
-        });
+        List<TileController> horizontalMatchingTiles = GetOneLineMatch(new Vector2[2] { Vector2.up, Vector2.down });
+        List<TileController> verticalMatchingTiles = GetOneLineMatch(new Vector2[2] { Vector2.left, Vector2.right });
 
-
-        if (horizonMatchingTiles != null)
+        if (horizontalMatchingTiles != null)
         {
-            matchingTiles.AddRange(horizonMatchingTiles);
-        }
-
-        if (verticalMatchingTiles != null)
-        {
-            matchingTiles.AddRange(horizonMatchingTiles);
+            matchingTiles.AddRange(horizontalMatchingTiles);
         }
 
         if (verticalMatchingTiles != null)
@@ -226,6 +238,7 @@ public class TileController : MonoBehaviour
         {
             matchingTiles.Add(this);
         }
+
         return matchingTiles;
     }
 
