@@ -23,6 +23,8 @@ public class TileController : MonoBehaviour
     private static readonly Vector2 sizeSmall = Vector2.zero;
     private static readonly Vector2 sizeNormal = Vector2.one;
 
+    private GameFlowManager game;
+
     private static readonly Vector2[] adjacentDirection = new Vector2[]
     {
         Vector2.up, Vector2.down, Vector2.left, Vector2.right
@@ -33,13 +35,11 @@ public class TileController : MonoBehaviour
         get; private set;
     }
 
-    
-
-
     private void Awake()
     {
         board = BoardManager.Instance;
         render = GetComponent<SpriteRenderer>();
+        game = GameFlowManager.Instance;
     }
     private void Start()
     {
@@ -57,7 +57,7 @@ public class TileController : MonoBehaviour
     private void OnMouseDown()
     {
         // Non Selectable conditions
-        if (render.sprite == null || board.IsAnimating)
+        if (render.sprite == null || board.IsAnimating || game.IsGameOver)
         {
             return;
         }

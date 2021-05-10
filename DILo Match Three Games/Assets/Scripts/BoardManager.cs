@@ -39,6 +39,8 @@ public class BoardManager : MonoBehaviour
     private Vector2 endPosition;
     private TileController[,] tiles;
 
+    private int combo;
+
     public bool IsAnimating
     {
         get
@@ -70,6 +72,7 @@ public class BoardManager : MonoBehaviour
     public void Process()
     {
         IsProcessing = true;
+        combo = 0;
         ProcessMatches();
     }
 
@@ -79,12 +82,16 @@ public class BoardManager : MonoBehaviour
     {
         List<TileController> matchingTiles = GetAllMatches();
 
+        StartCoroutine(ClearMatches(matchingTiles, ProcessDrop));
+
         if (matchingTiles == null || matchingTiles.Count == 0)
         {
             IsProcessing = false;
             return;
         }
-        StartCoroutine(ClearMatches(matchingTiles, ProcessDrop));
+        combo++;
+        ScoreManager.Instance.IncrementCurrentScore(matchingTiles.Count, combo);
+        
     }
 
     public List<TileController> GetAllMatches()
