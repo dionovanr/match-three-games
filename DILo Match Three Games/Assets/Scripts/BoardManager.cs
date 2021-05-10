@@ -347,7 +347,6 @@ public class BoardManager : MonoBehaviour
             {
                 Vector2 targetPosition = GetIndexPosition(new Vector2Int(x, y));
 
-                // skip if already on position
                 if ((Vector2)tiles[x, y].transform.position == targetPosition)
                 {
                     continue;
@@ -355,7 +354,10 @@ public class BoardManager : MonoBehaviour
                 isCompleted.Add(false);
 
                 int index = i;
-                StartCoroutine(tiles[x, y].MoveTilePosition(targetPosition, () => { isCompleted[index] = true; }));
+                StartCoroutine(tiles[x, y].MoveTilePosition(targetPosition, () => 
+                { 
+                    isCompleted[index] = true; 
+                }));
                 i++;
             }
         }
