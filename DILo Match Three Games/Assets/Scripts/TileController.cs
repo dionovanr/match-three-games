@@ -4,73 +4,58 @@ using UnityEngine;
 
 public class TileController : MonoBehaviour
 {
-    public int id;
-
-    private BoardManager board;
-    private SpriteRenderer render;
-    private bool isSelected = false;
+    private static readonly float moveDuration = 0.5f;
+    private static readonly float destroyBigDuration = 0.1f;
+    private static readonly float destroySmallDuration = 0.4f;
 
     private static readonly Color selectedColor = new Color(0.5f, 0.5f, 0.5f);
     private static readonly Color normalColor = Color.white;
 
-    private static TileController previousSelected = null;
-
-    private static readonly float moveDuration = 0.5f;
-    private static readonly float destroyBigDuration = 0.1f;
-    private static readonly float destroySmallDuration = 0.4f;
+    private static readonly Vector2[] adjacentDirection = new Vector2[] { Vector2.up, Vector2.down, Vector2.left, Vector2.right };
 
     private static readonly Vector2 sizeBig = Vector2.one * 1.2f;
     private static readonly Vector2 sizeSmall = Vector2.zero;
     private static readonly Vector2 sizeNormal = Vector2.one;
 
+    private static TileController previousSelected = null;
+
+    private BoardManager board;
     private GameFlowManager game;
+    private SpriteRenderer render;
+    private bool isSelected = false;
 
-    private static readonly Vector2[] adjacentDirection = new Vector2[]
-    {
-        Vector2.up, Vector2.down, Vector2.left, Vector2.right
-    };
+    public int id;
 
-    public bool IsDestroyed
-    {
-        get; private set;
+    public bool IsDestroyed 
+    { 
+        get; private set; 
     }
 
     private void Awake()
     {
         board = BoardManager.Instance;
-        render = GetComponent<SpriteRenderer>();
         game = GameFlowManager.Instance;
+        render = GetComponent<SpriteRenderer>();
     }
+
     private void Start()
     {
         IsDestroyed = false;
     }
 
-    public void ChangeId(int id, int x, int y)
-    {
-        render.sprite = board.tileTypes[id];
-        this.id = id;
-
-        name = "TILE_" + id + "(" + x + "," + y + ")";
-    }
-
     private void OnMouseDown()
     {
-        // Non Selectable conditions
         if (render.sprite == null || board.IsAnimating || game.IsGameOver)
         {
             return;
         }
 
-
-        // Already selected this tile?
         if (isSelected)
         {
             Deselect();
         }
         else
         {
-            // if nothing selected yet
             if (previousSelected == null)
             {
                 Select();
@@ -78,26 +63,22 @@ public class TileController : MonoBehaviour
 
             else
             {
-                // is this an adjacent tiles?
                 if (GetAllAdjacentTiles().Contains(previousSelected))
                 {
                     TileController otherTile = previousSelected;
                     previousSelected.Deselect();
-
-                    // swap tile
                     SwapTile(otherTile, () => {
                         if (board.GetAllMatches().Count > 0)
                         {
-                            Debug.Log("A MATCH!");
                             board.Process();
                         }
                         else
                         {
+                            //SoundManager.Instance.PlayWrong();
                             SwapTile(otherTile);
                         }
                     });
                 }
-                // if not adjacent then change selected
                 else
                 {
                     previousSelected.Deselect();
@@ -107,44 +88,12 @@ public class TileController : MonoBehaviour
         }
     }
 
-    public void SwapTilePosition(TileController otherTile, System.Action onCompleted = null)
+    public void ChangeId(int id, int x, int y)
     {
-        StartCoroutine(board.SwapTilePosition(this, otherTile, onCompleted));
-    }
+        render.sprite = board.tileTypes[id];
+        this.id = id;
 
-    public IEnumerator SetDestroyed(System.Action onCompleted)
-    {
-        IsDestroyed = true;
-        id = -1;
-        name = "TILE_NULL";
-
-        Vector2 startSize = transform.localScale;
-        float time = 0.0f;
-
-        while (time < destroyBigDuration)
-        {
-            transform.localScale = Vector2.Lerp(startSize, sizeBig, time / destroyBigDuration);
-            time += Time.deltaTime;
-
-            yield return new WaitForEndOfFrame();
-        }
-
-        transform.localScale = sizeBig;
-
-        startSize = transform.localScale;
-        time = 0.0f;
-
-        while (time < destroySmallDuration)
-        {
-            transform.localScale = Vector2.Lerp(startSize, sizeSmall, time / destroySmallDuration);
-            time += Time.deltaTime;
-
-            yield return new WaitForEndOfFrame();
-        }
-
-        transform.localScale = sizeSmall;
-        render.sprite = null;
-        onCompleted?.Invoke();
+        name = "TILE_" + id + " (" + x + ", " + y + ")";
     }
 
     #region Select & Deselect
@@ -175,14 +124,13 @@ public class TileController : MonoBehaviour
     public IEnumerator MoveTilePosition(Vector2 targetPosition, System.Action onCompleted)
     {
         Vector2 startPosition = transform.position;
-        float duration = moveDuration;
         float time = 0.0f;
 
         yield return new WaitForEndOfFrame();
 
-        while (time < duration)
+        while (time < moveDuration)
         {
-            transform.position = Vector2.Lerp(startPosition, targetPosition, time / duration);
+            transform.position = Vector2.Lerp(startPosition, targetPosition, time / moveDuration);
             time += Time.deltaTime;
 
             yield return new WaitForEndOfFrame();
@@ -193,24 +141,22 @@ public class TileController : MonoBehaviour
 
     #endregion
 
-
     #region Adjacent
 
     private TileController GetAdjacent(Vector2 castDir)
     {
         RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir, render.size.x);
-
         if (hit)
         {
             return hit.collider.GetComponent<TileController>();
         }
-        return null; 
+
+        return null;
     }
 
     public List<TileController> GetAllAdjacentTiles()
     {
         List<TileController> adjacentTiles = new List<TileController>();
-
         for (int i = 0; i < adjacentDirection.Length; i++)
         {
             adjacentTiles.Add(GetAdjacent(adjacentDirection[i]));
@@ -237,7 +183,6 @@ public class TileController : MonoBehaviour
             matchingTiles.Add(otherTile);
             hit = Physics2D.Raycast(otherTile.transform.position, castDir, render.size.x);
         }
-
         return matchingTiles;
     }
 
@@ -254,7 +199,6 @@ public class TileController : MonoBehaviour
         {
             return matchingTiles;
         }
-
         return null;
     }
 
@@ -264,9 +208,7 @@ public class TileController : MonoBehaviour
         {
             return null;
         }
-
         List<TileController> matchingTiles = new List<TileController>();
-
         List<TileController> horizontalMatchingTiles = GetOneLineMatch(new Vector2[2] { Vector2.up, Vector2.down });
         List<TileController> verticalMatchingTiles = GetOneLineMatch(new Vector2[2] { Vector2.left, Vector2.right });
 
@@ -290,11 +232,47 @@ public class TileController : MonoBehaviour
 
     #endregion
 
+    #region Destroy & Generate
+
+    public IEnumerator SetDestroyed(System.Action onCompleted)
+    {
+        IsDestroyed = true;
+        id = -1;
+        name = "TILE_NULL";
+
+        Vector2 startSize = transform.localScale;
+        float time = 0.0f;
+
+        while (time < destroyBigDuration)
+        {
+            transform.localScale = Vector2.Lerp(startSize, sizeBig, time / destroyBigDuration);
+            time += Time.deltaTime;
+
+            yield return new WaitForEndOfFrame();
+        }
+
+        transform.localScale = sizeBig;
+        startSize = transform.localScale;
+        time = 0.0f;
+
+        while (time < destroySmallDuration)
+        {
+            transform.localScale = Vector2.Lerp(startSize, sizeSmall, time / destroySmallDuration);
+            time += Time.deltaTime;
+            yield return new WaitForEndOfFrame();
+        }
+
+        transform.localScale = sizeSmall;
+        render.sprite = null;
+        onCompleted?.Invoke();
+    }
+
     public void GenerateRandomTile(int x, int y)
     {
         transform.localScale = sizeNormal;
         IsDestroyed = false;
-
-        ChangeId(Random.Range(0, board.tileTypes.Count),x, y);
+        ChangeId(Random.Range(0, board.tileTypes.Count), x, y);
     }
+
+    #endregion
 }

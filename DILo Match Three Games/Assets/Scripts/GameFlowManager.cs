@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class GameFlowManager : MonoBehaviour
 {
+
     #region Singleton
 
     private static GameFlowManager _instance = null;
@@ -27,6 +28,9 @@ public class GameFlowManager : MonoBehaviour
 
     #endregion
 
+    [Header("UI")]
+    public UIGameOver GameOverUI;
+
     private bool isGameOver = false;
 
     public bool IsGameOver
@@ -48,5 +52,6 @@ public class GameFlowManager : MonoBehaviour
     {
         isGameOver = true;
         ScoreManager.Instance.SetHighScore();
+        GameOverUI.Show();
     }
 }

@@ -5,9 +5,7 @@ using UnityEngine;
 public class BoardManager : MonoBehaviour
 {
     #region Singleton
-
     private static BoardManager _instance = null;
-
     public static BoardManager Instance
     {
         get
@@ -24,7 +22,12 @@ public class BoardManager : MonoBehaviour
             return _instance;
         }
     }
+
     #endregion
+
+    private Vector2 startPosition;
+    private Vector2 endPosition;
+    private TileController[,] tiles;
 
     [Header("Board")]
     public Vector2Int size;
@@ -35,12 +38,6 @@ public class BoardManager : MonoBehaviour
     public List<Sprite> tileTypes = new List<Sprite>();
     public GameObject tilePrefab;
 
-    private Vector2 startPosition;
-    private Vector2 endPosition;
-    private TileController[,] tiles;
-
-    private int combo;
-
     public bool IsAnimating
     {
         get
@@ -49,15 +46,17 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    public bool IsProcessing
+    public bool IsProcessing 
     {
-        get; set;
+        get; set; 
+    
     }
- 
-    public bool IsSwapping
-    {
-        get; set;
+    public bool IsSwapping 
+    { 
+        get; set; 
     }
+
+    private int combo;
 
     private void Start()
     {
@@ -66,90 +65,13 @@ public class BoardManager : MonoBehaviour
 
         IsProcessing = false;
         IsSwapping = false;
-
     }
-
-    public void Process()
-    {
-        IsProcessing = true;
-        combo = 0;
-        ProcessMatches();
-    }
-
-    #region Match
-
-    private void ProcessMatches()
-    {
-        List<TileController> matchingTiles = GetAllMatches();
-
-        StartCoroutine(ClearMatches(matchingTiles, ProcessDrop));
-
-        if (matchingTiles == null || matchingTiles.Count == 0)
-        {
-            IsProcessing = false;
-            return;
-        }
-        combo++;
-        ScoreManager.Instance.IncrementCurrentScore(matchingTiles.Count, combo);
-        
-    }
-
-    public List<TileController> GetAllMatches()
-    {
-        List<TileController> matchingTiles = new List<TileController>();
-
-        for (int x = 0; x < size.x; x++)
-        {
-            for (int y = 0; y < size.y; y++)
-            {
-                List<TileController> tileMatched = tiles[x, y].GetAllMatches();
-
-                if (tileMatched == null || tileMatched.Count == 0)
-                {
-                    continue;
-                }
-
-                Debug.Log("[" + x + " - " + y + "] has " + tileMatched.Count + " matches");
-
-                foreach (TileController item in tileMatched)
-                {
-                    if (!matchingTiles.Contains(item))
-                    {
-                        matchingTiles.Add(item);
-                    }
-                }
-            }
-        }
-
-        return matchingTiles;
-    }
-
-    private IEnumerator ClearMatches(List<TileController> matchingTiles, System.Action onCompleted)
-    {
-        List<bool> isCompleted = new List<bool>();
-
-        for (int i = 0; i < matchingTiles.Count; i++)
-        {
-            isCompleted.Add(false);
-        }
-
-        for (int i = 0; i < matchingTiles.Count; i++)
-        {
-            int index = i;
-            StartCoroutine(matchingTiles[i].SetDestroyed(() => { isCompleted[index] = true; }));
-        }
-        yield return new WaitUntil(() => { return IsAllTrue(isCompleted); });
-        onCompleted?.Invoke();
-    }
-
-    #endregion
 
     #region Generate
 
     private void CreateBoard(Vector2 tileSize)
     {
         tiles = new TileController[size.x, size.y];
-
         Vector2 totalSize = (tileSize + offsetTile) * (size - Vector2.one);
         startPosition = (Vector2)transform.position - (totalSize / 2) + offsetBoard;
         endPosition = startPosition + totalSize;
@@ -161,6 +83,7 @@ public class BoardManager : MonoBehaviour
                 TileController newTile = Instantiate(tilePrefab, new Vector2(startPosition.x + ((tileSize.x + offsetTile.x) * x), startPosition.y + ((tileSize.y + offsetTile.y) * y)), tilePrefab.transform.rotation, transform).GetComponent<TileController>();
                 tiles[x, y] = newTile;
 
+                // get no match id
                 List<int> possibleId = GetStartingPossibleIdList(x, y);
                 int newId = possibleId[Random.Range(0, possibleId.Count)];
                 newTile.ChangeId(newId, x, y);
@@ -186,6 +109,7 @@ public class BoardManager : MonoBehaviour
         {
             possibleId.Remove(tiles[x, y - 1].id);
         }
+
         return possibleId;
     }
 
@@ -212,45 +136,84 @@ public class BoardManager : MonoBehaviour
         StartCoroutine(a.MoveTilePosition(GetIndexPosition(indexB), () => { isRoutineACompleted = true; }));
         StartCoroutine(b.MoveTilePosition(GetIndexPosition(indexA), () => { isRoutineBCompleted = true; }));
 
-        yield return new WaitUntil(() => { return isRoutineACompleted && isRoutineBCompleted; });
+        yield return new WaitUntil(() => 
+        {
+            return isRoutineACompleted && isRoutineBCompleted; 
+        });
 
         onCompleted?.Invoke();
-
         IsSwapping = false;
     }
 
-
     #endregion
 
-    #region Helper
+    #region Process
 
-    public Vector2Int GetTileIndex(TileController tile)
+    public void Process()
     {
+        IsProcessing = true;
+        combo = 0;
+        ProcessMatches();
+    }
+
+    #region Match
+
+    private void ProcessMatches()
+    {
+        List<TileController> matchingTiles = GetAllMatches();
+        if (matchingTiles == null || matchingTiles.Count == 0)
+        {
+            IsProcessing = false;
+            return;
+        }
+        combo++;
+        ScoreManager.Instance.IncrementCurrentScore(matchingTiles.Count, combo);
+        StartCoroutine(ClearMatches(matchingTiles, ProcessDrop));
+    }
+
+    public List<TileController> GetAllMatches()
+    {
+        List<TileController> matchingTiles = new List<TileController>();
+
         for (int x = 0; x < size.x; x++)
         {
             for (int y = 0; y < size.y; y++)
             {
-                if (tile == tiles[x, y])
-                    return new Vector2Int(x, y);
+                List<TileController> tileMatched = tiles[x, y].GetAllMatches();
+
+                if (tileMatched == null || tileMatched.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (TileController item in tileMatched)
+                {
+                    if (!matchingTiles.Contains(item))
+                    {
+                        matchingTiles.Add(item);
+                    }
+                }
             }
         }
-        return new Vector2Int(-1, -1);
+        return matchingTiles;
     }
 
-    public Vector2 GetIndexPosition(Vector2Int index)
+    private IEnumerator ClearMatches(List<TileController> matchingTiles, System.Action onCompleted)
     {
-        Vector2 tileSize = tilePrefab.GetComponent<SpriteRenderer>().size;
-        return new Vector2(startPosition.x + ((tileSize.x + offsetTile.x) * index.x), startPosition.y + ((tileSize.y + offsetTile.y) * index.y));
-    }
+        List<bool> isCompleted = new List<bool>();
 
-    public bool IsAllTrue(List<bool> list)
-    {
-        foreach (bool status in list)
+        for (int i = 0; i < matchingTiles.Count; i++)
         {
-            if (!status)
-                return false;
+            isCompleted.Add(false);
         }
-        return true;
+
+        for (int i = 0; i < matchingTiles.Count; i++)
+        {
+            int index = i;
+            StartCoroutine(matchingTiles[i].SetDestroyed(() => { isCompleted[index] = true; }));
+        }
+        yield return new WaitUntil(() => { return IsAllTrue(isCompleted); });
+        onCompleted?.Invoke();
     }
 
     #endregion
@@ -266,6 +229,7 @@ public class BoardManager : MonoBehaviour
     private Dictionary<TileController, int> GetAllDrop()
     {
         Dictionary<TileController, int> droppingTiles = new Dictionary<TileController, int>();
+
         for (int x = 0; x < size.x; x++)
         {
             for (int y = 0; y < size.y; y++)
@@ -290,6 +254,7 @@ public class BoardManager : MonoBehaviour
                 }
             }
         }
+
         return droppingTiles;
     }
 
@@ -322,6 +287,7 @@ public class BoardManager : MonoBehaviour
     private List<TileController> GetAllDestroyed()
     {
         List<TileController> destroyedTiles = new List<TileController>();
+
         for (int x = 0; x < size.x; x++)
         {
             for (int y = 0; y < size.y; y++)
@@ -332,6 +298,7 @@ public class BoardManager : MonoBehaviour
                 }
             }
         }
+
         return destroyedTiles;
     }
 
@@ -345,6 +312,7 @@ public class BoardManager : MonoBehaviour
         }
 
         float spawnHeight = endPosition.y + tilePrefab.GetComponent<SpriteRenderer>().size.y + offsetTile.y;
+
         foreach (TileController tile in destroyedTiles)
         {
             Vector2Int tileIndex = GetTileIndex(tile);
@@ -354,6 +322,7 @@ public class BoardManager : MonoBehaviour
             tile.transform.position = new Vector2(tile.transform.position.x, spawnHeight);
             tile.GenerateRandomTile(targetIndex.x, targetIndex.y);
         }
+
         yield return null;
         onCompleted?.Invoke();
     }
@@ -378,7 +347,8 @@ public class BoardManager : MonoBehaviour
             {
                 Vector2 targetPosition = GetIndexPosition(new Vector2Int(x, y));
 
-                if ((Vector2)tiles[x,y].transform.position == targetPosition)
+                // skip if already on position
+                if ((Vector2)tiles[x, y].transform.position == targetPosition)
                 {
                     continue;
                 }
@@ -395,6 +365,36 @@ public class BoardManager : MonoBehaviour
 
     #endregion
 
+    #endregion
 
+    #region Helper
 
+    public Vector2Int GetTileIndex(TileController tile)
+    {
+        for (int x = 0; x < size.x; x++)
+        {
+            for (int y = 0; y < size.y; y++)
+            {
+                if (tile == tiles[x, y]) return new Vector2Int(x, y);
+            }
+        }
+        return new Vector2Int(-1, -1);
+    }
+
+    public Vector2 GetIndexPosition(Vector2Int index)
+    {
+        Vector2 tileSize = tilePrefab.GetComponent<SpriteRenderer>().size;
+        return new Vector2(startPosition.x + ((tileSize.x + offsetTile.x) * index.x), startPosition.y + ((tileSize.y + offsetTile.y) * index.y));
+    }
+
+    public bool IsAllTrue(List<bool> list)
+    {
+        foreach (bool status in list)
+        {
+            if (!status) return false;
+        }
+        return true;
+    }
+
+    #endregion
 }
